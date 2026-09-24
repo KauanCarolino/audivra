@@ -4,3 +4,7 @@ class AudivraError(Exception):
 
 class ConfigurationError(AudivraError):
     """Invalid AUDIVRA configuration."""
+
+
+class ImmutabilityError(AudivraError):
+    """Raised when code tries to change or delete an AuditLog."""
