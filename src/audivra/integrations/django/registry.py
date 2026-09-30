@@ -1,6 +1,6 @@
 """Per-model audit configuration."""
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
 from django.db.models import Model
@@ -17,6 +17,7 @@ class ModelConfig:
     include: frozenset[str] | None
     exclude: frozenset[str]
     mask: frozenset[str]
+    snapshot: bool = False
 
     def audited_field_names(self) -> frozenset[str]:
         selected = _concrete_names(self.model) if self.include is None else self.include
@@ -36,6 +37,7 @@ class Registry:
         exclude: Sequence[str] | None = None,
         include: Sequence[str] | None = None,
         mask: Sequence[str] | None = None,
+        snapshot: bool = False,
     ) -> ModelConfig:
         if not isinstance(model, type) or not issubclass(model, Model):
             raise ConfigurationError("audit.register() expects a Django model class.")
@@ -57,20 +59,43 @@ class Registry:
             include=explicit_include,
             exclude=excluded,
             mask=explicit_mask,
+            snapshot=snapshot,
         )
         self._configs[model] = config
+        from audivra.integrations.django.signals import connect
+
+        connect(model)
         return config
 
     def unregister(self, model: type[Model]) -> None:
         if model not in self._configs:
             raise ConfigurationError(f"{getattr(model, '__name__', model)} is not registered.")
+        from audivra.integrations.django.signals import disconnect
+
+        disconnect(model)
         del self._configs[model]
 
     def get(self, model: type[Model]) -> ModelConfig | None:
         return self._configs.get(model)
 
     def clear(self) -> None:
+        from audivra.integrations.django.signals import disconnect
+
+        for model in list(self._configs):
+            disconnect(model)
         self._configs.clear()
+
+
+def limit_audited_names(
+    model: type[Model],
+    update_fields: Iterable[str] | None,
+    audited: frozenset[str],
+) -> frozenset[str]:
+    """Restrict an update diff to the columns Django actually wrote."""
+    if update_fields is None:
+        return audited
+    aliases = _field_aliases(model)
+    return frozenset(aliases[name] for name in update_fields if aliases.get(name) in audited)
 
 
 def _sensitive_names() -> frozenset[str]:

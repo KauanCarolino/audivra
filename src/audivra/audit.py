@@ -1,4 +1,4 @@
-"""Public audit API. Tracking is implemented in later phases."""
+"""Public audit API."""
 
 from collections.abc import Sequence
 from typing import Any
@@ -18,8 +18,15 @@ class Audit:
         exclude: Sequence[str] | None = None,
         include: Sequence[str] | None = None,
         mask: Sequence[str] | None = None,
+        snapshot: bool = False,
     ) -> None:
-        registry.register(model, exclude=exclude, include=include, mask=mask)
+        registry.register(
+            model,
+            exclude=exclude,
+            include=include,
+            mask=mask,
+            snapshot=snapshot,
+        )
 
     def unregister(self, model: type[Model]) -> None:
         registry.unregister(model)

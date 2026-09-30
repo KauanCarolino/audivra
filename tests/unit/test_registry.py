@@ -6,11 +6,6 @@ from audivra.exceptions import ConfigurationError
 from audivra.integrations.django.registry import registry
 
 
-@pytest.fixture(autouse=True)
-def _clear_registry() -> None:
-    registry.clear()
-
-
 def test_should_exclude_sensitive_fields_by_default() -> None:
     audit.register(User, include=["username", "email", "password"])
     config = registry.get(User)
