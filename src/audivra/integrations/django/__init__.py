@@ -1,1 +1,1 @@
-"""Django registry, signals and tracker. Implemented in later phases."""
+"""Django registry, signals and tracker."""

@@ -8,15 +8,24 @@ from audivra.exceptions import ConfigurationError
 
 BACKENDS = frozenset({"sync", "outbox", "celery"})
 
+BUILTIN_SENSITIVE_FIELDS = frozenset(
+    {
+        "password",
+        "password_hash",
+        "token",
+        "access_token",
+        "refresh_token",
+        "secret",
+        "api_key",
+        "private_key",
+    }
+)
+
 DEFAULTS: dict[str, Any] = {
     "BACKEND": "outbox",
     "RETENTION_DAYS": None,
     "TRACK_REQUEST_CONTEXT": True,
-    "DEFAULT_EXCLUDE_FIELDS": [
-        "password",
-        "token",
-        "secret",
-    ],
+    "DEFAULT_EXCLUDE_FIELDS": sorted(BUILTIN_SENSITIVE_FIELDS),
 }
 
 
