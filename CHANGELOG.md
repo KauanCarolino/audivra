@@ -8,4 +8,5 @@
 - CREATE, UPDATE e DELETE no backend `sync`, com diff e snapshot opcional.
 - Máscara padrão e `serializers` por campo; senha, token e secret não entram no log.
 - Middleware grava usuário, IP, user-agent, método, path e request id.
+- Outbox grava o evento na mesma transação; o worker cria um `AuditLog` por `event_id`.
 - Tooling: Ruff, Mypy, Pytest, coverage e pre-commit.

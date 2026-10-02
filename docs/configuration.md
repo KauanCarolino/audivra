@@ -33,3 +33,11 @@ MIDDLEWARE = [
 ```
 
 `TRACK_REQUEST_CONTEXT` desliga essa captura. Fora de uma requisição HTTP, `user_id` fica vazio.
+
+Com `BACKEND` `outbox`, o `AuditLog` nasce no worker:
+
+```python
+from audivra.backends.outbox import OutboxWorker
+
+OutboxWorker().run()
+```

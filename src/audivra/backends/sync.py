@@ -11,9 +11,20 @@ from audivra.middleware.request_context import get_request_context
 from audivra.models import AuditLog
 
 
-def write_audit_log(*, action: str, instance: Model, meta_info: dict[str, Any]) -> AuditLog:
-    if get_config()["BACKEND"] != "sync":
-        raise ConfigurationError("AUDIVRA BACKEND must be 'sync' until the outbox backend is available.")
+def write_audit_log(*, action: str, instance: Model, meta_info: dict[str, Any]) -> AuditLog | None:
+    fields = _entry_fields(action=action, instance=instance, meta_info=meta_info)
+    backend = get_config()["BACKEND"]
+    if backend == "sync":
+        return AuditLog.objects.create(**fields)
+    if backend == "outbox":
+        from audivra.backends.outbox import enqueue
+
+        enqueue(action, fields)
+        return None
+    raise ConfigurationError("AUDIVRA BACKEND must be 'sync' or 'outbox'. Celery is not available yet.")
+
+
+def _entry_fields(*, action: str, instance: Model, meta_info: dict[str, Any]) -> dict[str, Any]:
     context = get_request_context() if get_config()["TRACK_REQUEST_CONTEXT"] else None
     payload = dict(meta_info)
     user_id = None
@@ -33,14 +44,14 @@ def write_audit_log(*, action: str, instance: Model, meta_info: dict[str, Any]) 
             "ip": context.ip_address,
             "request_id": context.request_id,
         }
-    return AuditLog.objects.create(
-        action=action,
-        content_type=ContentType.objects.get_for_model(instance.__class__),
-        object_id="" if instance.pk is None else str(instance.pk),
-        meta_info=payload,
-        user_id=user_id,
-        user_type=user_type,
-        ip_address=ip_address,
-        user_agent=user_agent,
-        request_id=request_id,
-    )
+    return {
+        "action": action,
+        "content_type_id": ContentType.objects.get_for_model(instance.__class__).pk,
+        "object_id": "" if instance.pk is None else str(instance.pk),
+        "meta_info": payload,
+        "user_id": user_id,
+        "user_type": user_type,
+        "ip_address": ip_address,
+        "user_agent": user_agent,
+        "request_id": request_id,
+    }

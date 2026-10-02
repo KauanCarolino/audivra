@@ -49,6 +49,7 @@ class AuditLog(models.Model):
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     user_agent = models.TextField(blank=True, default="")
     request_id = models.CharField(max_length=255, null=True, blank=True)
+    event_id = models.UUIDField(null=True, blank=True, unique=True)
 
     objects = AuditLogQuerySet.as_manager()
 
