@@ -9,6 +9,7 @@ from audivra.integrations.django.registry import ModelConfig
 from audivra.models import AuditAction
 from audivra.services.diff import diff_values
 from audivra.services.serialize import to_jsonable
+from audivra.utils.masking import mask_text
 
 
 def read_values(instance: Model, names: frozenset[str]) -> dict[str, Any]:
@@ -40,7 +41,7 @@ def record_create(instance: Model, config: ModelConfig) -> None:
         instance=instance,
         meta_info={
             "object": _object_ref(instance),
-            "snapshot": _json_map(read_values(instance, config.audited_field_names())),
+            "snapshot": _present(read_values(instance, config.audited_field_names()), config),
         },
     )
 
@@ -52,12 +53,12 @@ def record_update(instance: Model, config: ModelConfig, old: dict[str, Any], new
     meta: dict[str, Any] = {
         "object": _object_ref(instance),
         "changes": {
-            name: {"old": to_jsonable(item["old"]), "new": to_jsonable(item["new"])}
+            name: {"old": _present_value(name, item["old"], config), "new": _present_value(name, item["new"], config)}
             for name, item in raw_changes.items()
         },
     }
     if config.snapshot:
-        meta["snapshot"] = _json_map(read_values(instance, config.audited_field_names()))
+        meta["snapshot"] = _present(read_values(instance, config.audited_field_names()), config)
     write_audit_log(action=cast(str, AuditAction.UPDATE), instance=instance, meta_info=meta)
 
 
@@ -67,7 +68,7 @@ def record_delete(instance: Model, config: ModelConfig) -> None:
         instance=instance,
         meta_info={
             "object": _object_ref(instance),
-            "snapshot": _json_map(read_values(instance, config.audited_field_names())),
+            "snapshot": _present(read_values(instance, config.audited_field_names()), config),
         },
     )
 
@@ -79,5 +80,15 @@ def _object_ref(instance: Model) -> dict[str, str]:
     }
 
 
-def _json_map(values: dict[str, Any]) -> dict[str, Any]:
-    return {name: to_jsonable(value) for name, value in values.items()}
+def _present(values: dict[str, Any], config: ModelConfig) -> dict[str, Any]:
+    return {name: _present_value(name, value, config) for name, value in values.items()}
+
+
+def _present_value(name: str, value: Any, config: ModelConfig) -> Any:
+    serializer = config.serializers.get(name)
+    if serializer is not None:
+        return to_jsonable(serializer(value))
+    rendered = to_jsonable(value)
+    if name in config.mask:
+        return mask_text(rendered)
+    return rendered

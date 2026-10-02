@@ -1,6 +1,6 @@
 """Public audit API."""
 
-from collections.abc import Sequence
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
 from django.db.models import Model
@@ -18,6 +18,7 @@ class Audit:
         exclude: Sequence[str] | None = None,
         include: Sequence[str] | None = None,
         mask: Sequence[str] | None = None,
+        serializers: Mapping[str, Callable[[Any], Any]] | None = None,
         snapshot: bool = False,
     ) -> None:
         registry.register(
@@ -25,6 +26,7 @@ class Audit:
             exclude=exclude,
             include=include,
             mask=mask,
+            serializers=serializers,
             snapshot=snapshot,
         )
 

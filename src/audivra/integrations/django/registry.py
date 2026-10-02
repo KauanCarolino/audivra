@@ -1,7 +1,8 @@
 """Per-model audit configuration."""
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from typing import Any
 
 from django.db.models import Model
 
@@ -17,6 +18,7 @@ class ModelConfig:
     include: frozenset[str] | None
     exclude: frozenset[str]
     mask: frozenset[str]
+    serializers: Mapping[str, Callable[[Any], Any]]
     snapshot: bool = False
 
     def audited_field_names(self) -> frozenset[str]:
@@ -37,6 +39,7 @@ class Registry:
         exclude: Sequence[str] | None = None,
         include: Sequence[str] | None = None,
         mask: Sequence[str] | None = None,
+        serializers: Mapping[str, Callable[[Any], Any]] | None = None,
         snapshot: bool = False,
     ) -> ModelConfig:
         if not isinstance(model, type) or not issubclass(model, Model):
@@ -48,10 +51,11 @@ class Registry:
         explicit_exclude = _canonical_names(exclude, aliases, "exclude")
         explicit_include = None if include is None else _canonical_names(include, aliases, "include")
         explicit_mask = _canonical_names(mask, aliases, "mask")
+        explicit_serializers = _serializers(serializers, aliases)
         excluded = explicit_exclude | (_sensitive_names() & set(aliases.values()))
-        overlap = explicit_mask & excluded
-        if overlap:
-            names = ", ".join(sorted(overlap))
+        blocked = (explicit_mask | set(explicit_serializers)) & excluded
+        if blocked:
+            names = ", ".join(sorted(blocked))
             raise ConfigurationError(f"Masked fields are excluded and will not be stored: {names}.")
 
         config = ModelConfig(
@@ -59,6 +63,7 @@ class Registry:
             include=explicit_include,
             exclude=excluded,
             mask=explicit_mask,
+            serializers=explicit_serializers,
             snapshot=snapshot,
         )
         self._configs[model] = config
@@ -96,6 +101,32 @@ def limit_audited_names(
         return audited
     aliases = _field_aliases(model)
     return frozenset(aliases[name] for name in update_fields if aliases.get(name) in audited)
+
+
+def _serializers(
+    values: Mapping[str, Callable[[Any], Any]] | None,
+    aliases: dict[str, str],
+) -> dict[str, Callable[[Any], Any]]:
+    if values is None:
+        return {}
+    if isinstance(values, str) or not isinstance(values, Mapping):
+        raise ConfigurationError("serializers must be a mapping of field names to callables.")
+    prepared: dict[str, Callable[[Any], Any]] = {}
+    unknown: set[str] = set()
+    for name, serializer in values.items():
+        if not isinstance(name, str) or not name.strip():
+            raise ConfigurationError("serializer field names must be non-empty strings.")
+        canonical = aliases.get(name)
+        if canonical is None:
+            unknown.add(name)
+            continue
+        if not callable(serializer):
+            raise ConfigurationError(f"Serializer for {name} must be callable.")
+        prepared[canonical] = serializer
+    if unknown:
+        listed = ", ".join(sorted(unknown))
+        raise ConfigurationError(f"Unknown serializer fields: {listed}.")
+    return prepared
 
 
 def _sensitive_names() -> frozenset[str]:

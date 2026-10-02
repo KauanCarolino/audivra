@@ -6,4 +6,6 @@
 - `AuditLog` imutável, `AuditAction`, índices e Admin somente leitura.
 - `audit.register` / `unregister` com include, exclude e campos sensíveis de fora por padrão.
 - CREATE, UPDATE e DELETE no backend `sync`, com diff e snapshot opcional.
+- Máscara padrão e `serializers` por campo; senha, token e secret não entram no log.
+- Middleware grava usuário, IP, user-agent, método, path e request id.
 - Tooling: Ruff, Mypy, Pytest, coverage e pre-commit.

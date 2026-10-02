@@ -7,15 +7,40 @@ from django.db.models import Model
 
 from audivra.conf import get_config
 from audivra.exceptions import ConfigurationError
+from audivra.middleware.request_context import get_request_context
 from audivra.models import AuditLog
 
 
 def write_audit_log(*, action: str, instance: Model, meta_info: dict[str, Any]) -> AuditLog:
     if get_config()["BACKEND"] != "sync":
         raise ConfigurationError("AUDIVRA BACKEND must be 'sync' until the outbox backend is available.")
+    context = get_request_context() if get_config()["TRACK_REQUEST_CONTEXT"] else None
+    payload = dict(meta_info)
+    user_id = None
+    user_type = None
+    ip_address = None
+    user_agent = ""
+    request_id = None
+    if context is not None:
+        user_id = context.user_id
+        user_type = context.user_type
+        ip_address = context.ip_address
+        user_agent = context.user_agent
+        request_id = context.request_id
+        payload["request"] = {
+            "method": context.method,
+            "path": context.path,
+            "ip": context.ip_address,
+            "request_id": context.request_id,
+        }
     return AuditLog.objects.create(
         action=action,
         content_type=ContentType.objects.get_for_model(instance.__class__),
         object_id="" if instance.pk is None else str(instance.pk),
-        meta_info=meta_info,
+        meta_info=payload,
+        user_id=user_id,
+        user_type=user_type,
+        ip_address=ip_address,
+        user_agent=user_agent,
+        request_id=request_id,
     )

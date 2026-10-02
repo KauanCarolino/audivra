@@ -21,3 +21,15 @@ AUDIVRA = {
 ```
 
 `celery` exige o extra `audivra[celery]`. O padrão de `BACKEND` é `outbox`.
+
+Para gravar usuário, IP e a requisição, coloque o middleware depois da autenticação:
+
+```python
+MIDDLEWARE = [
+    ...
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "audivra.middleware.RequestContextMiddleware",
+]
+```
+
+`TRACK_REQUEST_CONTEXT` desliga essa captura. Fora de uma requisição HTTP, `user_id` fica vazio.
