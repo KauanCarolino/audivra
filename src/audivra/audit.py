@@ -6,6 +6,7 @@ from typing import Any
 from django.db.models import Model
 
 from audivra.integrations.django.registry import registry
+from audivra.models.audit_log import AuditLog, AuditLogQuerySet
 
 
 class Audit:
@@ -36,8 +37,8 @@ class Audit:
     def record(self, action: str, instance: Any, user: Any = None) -> None:
         raise NotImplementedError
 
-    def history(self, instance: Any) -> list[Any]:
-        raise NotImplementedError
+    def history(self, instance: Model) -> AuditLogQuerySet:
+        return AuditLog.objects.for_object(instance)
 
 
 audit = Audit()

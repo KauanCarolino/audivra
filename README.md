@@ -1,6 +1,6 @@
 # audivra
 
-Biblioteca de audit trail para Django. Versão `0.1.0` entrega a fundação do pacote; o rastreamento CREATE/UPDATE/DELETE chega nas fases seguintes do `project-plan.md`.
+Biblioteca de audit trail para Django. Rastreia CREATE, UPDATE e DELETE em models registrados.
 
 ## Instalação
 
@@ -10,22 +10,29 @@ pip install -e ".[dev]"
 
 Django suportado: **5.2** (LTS), **6.0** e **6.1**. Python **3.10+**. Django 6.x exige Python 3.12+.
 
-## API prevista
+Adicione `audivra` em `INSTALLED_APPS` e rode `python manage.py migrate`. Guia: [docs/installation.md](docs/installation.md), [docs/django.md](docs/django.md).
+
+## Uso
 
 ```python
 from audivra import audit
 
 audit.register(User, exclude=["password"])
-audit.unregister(User)
-audit.record("approve", obj, user=user)
-audit.history(obj)
+
+user.name = "Maria"
+user.save()
+
+audit.history(user)
+audit.history(user).updated().by_user(actor)
 ```
 
-Nesta versão os métodos levantam `NotImplementedError`.
+`audit.history(instance)` devolve um QuerySet. Também dá para filtrar por `AuditLog.objects.for_object`, `by_user`, `created`, `updated`, `deleted` e `between`.
+
+`audit.record` (eventos manuais) ainda não está implementado.
 
 ## Limitações
 
-SQL bruto, bulk update/delete e alterações fora do ORM não são detectados.
+SQL bruto, bulk update/delete, ManyToMany e alterações fora do ORM não são detectados. Depois de um `delete()`, o Django zera o `pk` — consulte com a instância ainda viva ou com `Model(pk=id)`.
 
 ## Desenvolvimento
 

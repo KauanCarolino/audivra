@@ -5,6 +5,7 @@ from typing import Any
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
 
+from audivra.backends.outbox import enqueue
 from audivra.conf import get_config
 from audivra.exceptions import ConfigurationError
 from audivra.middleware.request_context import get_request_context
@@ -17,8 +18,6 @@ def write_audit_log(*, action: str, instance: Model, meta_info: dict[str, Any]) 
     if backend == "sync":
         return AuditLog.objects.create(**fields)
     if backend == "outbox":
-        from audivra.backends.outbox import enqueue
-
         enqueue(action, fields)
         return None
     raise ConfigurationError("AUDIVRA BACKEND must be 'sync' or 'outbox'. Celery is not available yet.")

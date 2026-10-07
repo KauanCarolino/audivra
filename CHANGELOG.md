@@ -9,4 +9,5 @@
 - Máscara padrão e `serializers` por campo; senha, token e secret não entram no log.
 - Middleware grava usuário, IP, user-agent, método, path e request id.
 - Outbox grava o evento na mesma transação; o worker cria um `AuditLog` por `event_id`.
+- `audit.history` e QuerySet (`for_object`, `by_user`, `created`, `updated`, `deleted`, `between`).
 - Tooling: Ruff, Mypy, Pytest, coverage e pre-commit.

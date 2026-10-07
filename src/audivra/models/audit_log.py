@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
+from django.contrib.contenttypes.models import ContentType
 from django.db import models
 
 from audivra.exceptions import ImmutabilityError
@@ -20,6 +22,33 @@ class AuditAction(models.TextChoices):
 
 
 class AuditLogQuerySet(models.QuerySet):
+    def for_object(self, instance: models.Model) -> AuditLogQuerySet:
+        if instance.pk is None:
+            raise ValueError("Cannot query audit history for an unsaved instance.")
+        content_type = ContentType.objects.get_for_model(instance.__class__)
+        return self.filter(content_type=content_type, object_id=str(instance.pk))
+
+    def by_user(self, user: models.Model | str | int) -> AuditLogQuerySet:
+        if isinstance(user, models.Model):
+            if user.pk is None:
+                raise ValueError("Cannot filter audit history by an unsaved user.")
+            user_id = str(user.pk)
+        else:
+            user_id = str(user)
+        return self.filter(user_id=user_id)
+
+    def created(self) -> AuditLogQuerySet:
+        return self.filter(action=AuditAction.CREATE)
+
+    def updated(self) -> AuditLogQuerySet:
+        return self.filter(action=AuditAction.UPDATE)
+
+    def deleted(self) -> AuditLogQuerySet:
+        return self.filter(action=AuditAction.DELETE)
+
+    def between(self, start: datetime, end: datetime) -> AuditLogQuerySet:
+        return self.filter(created_at__gte=start, created_at__lte=end)
+
     def update(self, **kwargs: Any) -> int:
         raise ImmutabilityError("AuditLog is immutable.")
 
